@@ -7,6 +7,7 @@ dist/
 build/
 .env
 .env.*
+!backend/.env.example
 
 # Python / backend
 __pycache__/
@@ -15,6 +16,8 @@ __pycache__/
 venv/
 env/
 *.sqlite3
+backend/relief.db
+backend/.env
 
 # Logs
 *.log
