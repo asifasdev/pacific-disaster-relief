@@ -14,7 +14,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# -------- Models --------
+# -------- Models -------
 
 EventStatus = Literal["planned", "active", "closed"]
 
