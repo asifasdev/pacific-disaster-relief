@@ -38,6 +38,8 @@ def seed_if_empty(db: Session):
             "Port Vila",
             "Support trauma and emergency care for patients transferred from damaged facilities.",
             "assigned",
+            "Dr. L. Iekau",
+            "Ministry of Health Surge Team",
         ),
         (
             events[0].id,
@@ -46,6 +48,8 @@ def seed_if_empty(db: Session):
             "Efate Island",
             "Temporary shelter kits requested for households displaced after the 7.3 earthquake.",
             "in_progress",
+            "M. Tari",
+            "Shelter Cluster Field Unit",
         ),
         (
             events[0].id,
@@ -54,6 +58,8 @@ def seed_if_empty(db: Session):
             "Port Vila",
             "Restore safe water access for communities with damaged pipelines and storage points.",
             "new",
+            "A. Ravo",
+            "WASH Infrastructure Team",
         ),
         (
             events[0].id,
@@ -62,6 +68,8 @@ def seed_if_empty(db: Session):
             "Port Vila",
             "Fuel and transport support needed for medical evacuation and relief cargo movement.",
             "new",
+            "K. Bani",
+            "Logistics Access Cell",
         ),
         (
             events[1].id,
@@ -70,6 +78,8 @@ def seed_if_empty(db: Session):
             "Mulitaka, Enga Province",
             "Emergency shelter materials required for families displaced by landslide debris.",
             "in_progress",
+            "P. Timi",
+            "IOM Site Support Team",
         ),
         (
             events[1].id,
@@ -78,6 +88,8 @@ def seed_if_empty(db: Session):
             "Mulitaka, Enga Province",
             "Immediate food distribution requested while local supply routes remain disrupted.",
             "assigned",
+            "R. Kumai",
+            "Food Security Distribution Team",
         ),
         (
             events[1].id,
@@ -86,6 +98,8 @@ def seed_if_empty(db: Session):
             "Mulitaka, Enga Province",
             "Safe drinking water and household purification supplies needed for temporary sites.",
             "new",
+            "S. Yaka",
+            "WASH Emergency Team",
         ),
         (
             events[1].id,
@@ -94,6 +108,8 @@ def seed_if_empty(db: Session):
             "Porgera-Paiela District",
             "Mobile health team support needed for trauma, wound care, and infection prevention.",
             "new",
+            "N. Tuke",
+            "Provincial Health Mobile Unit",
         ),
         (
             events[1].id,
@@ -102,6 +118,8 @@ def seed_if_empty(db: Session):
             "Wabag",
             "Heavy equipment and road access support required to improve aid delivery corridors.",
             "new",
+            "J. Kon",
+            "Road Access and Transport Team",
         ),
         (
             events[2].id,
@@ -110,6 +128,8 @@ def seed_if_empty(db: Session):
             "Sola, Vanua Lava",
             "Roofing materials and weatherproof shelter repairs requested during early recovery.",
             "new",
+            "C. Moli",
+            "Shelter Recovery Group",
         ),
         (
             events[2].id,
@@ -118,6 +138,8 @@ def seed_if_empty(db: Session):
             "Northeast Malekula",
             "Community food assistance requested for households with crop and garden losses.",
             "new",
+            "T. Sovu",
+            "Community Food Support Team",
         ),
         (
             events[2].id,
@@ -126,6 +148,8 @@ def seed_if_empty(db: Session):
             "Penama Province",
             "Water system repairs and storage tanks needed after cyclone damage to infrastructure.",
             "new",
+            "D. Iaris",
+            "Rural Water Repair Unit",
         ),
     ]
 
@@ -137,8 +161,19 @@ def seed_if_empty(db: Session):
             location=location,
             description=description,
             status=status,
+            assignee_name=assignee_name,
+            assignee_team=assignee_team,
         )
-        for event_id, category, urgency, location, description, status in realistic_requests
+        for (
+            event_id,
+            category,
+            urgency,
+            location,
+            description,
+            status,
+            assignee_name,
+            assignee_team,
+        ) in realistic_requests
     ]
 
     db.add_all(requests)

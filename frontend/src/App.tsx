@@ -15,6 +15,10 @@ type RequestItem = {
   location: string;
   description: string;
   status: "new" | "assigned" | "in_progress" | "completed";
+  assignee_name: string | null;
+  assignee_team: string | null;
+  created_at: string;
+  updated_at: string;
 };
 
 const API = "http://127.0.0.1:8000";
@@ -23,43 +27,34 @@ const CATEGORY_OPTIONS: RequestItem["category"][] = ["water", "food", "medical",
 const URGENCY_OPTIONS: RequestItem["urgency"][] = ["high", "medium", "low"];
 const STATUS_OPTIONS: RequestItem["status"][] = ["new", "assigned", "in_progress", "completed"];
 
-const CATEGORY_OWNER: Record<
-  RequestItem["category"],
-  { lead: string; team: string; workflow: string; channel: string }
-> = {
+const CATEGORY_WORKFLOW: Record<RequestItem["category"], { lead: string; workflow: string; channel: string }> = {
   water: {
     lead: "WASH Cluster",
-    team: "Water Systems Unit",
     workflow: "Damage check -> purification -> tanker/repair deployment",
     channel: "Daily WASH call, 08:30 local",
   },
   food: {
     lead: "Food Security Cluster",
-    team: "Community Distribution Team",
     workflow: "Beneficiary verification -> ration staging -> last-mile handoff",
     channel: "Field logistics sync, 10:00 local",
   },
   medical: {
     lead: "Health Cluster",
-    team: "Mobile Clinical Team",
     workflow: "Triage -> referral routing -> treatment + replenishment",
     channel: "Clinical incident room, every 4h",
   },
   shelter: {
     lead: "Shelter Cluster",
-    team: "Camp Operations Team",
     workflow: "Site assessment -> kit dispatch -> household registration",
     channel: "Shelter operations standup, 09:00 local",
   },
   transport: {
     lead: "Logistics Cluster",
-    team: "Route Access Cell",
     workflow: "Route clearance -> dispatch slotting -> escort + proof of delivery",
     channel: "Route board review, every 6h",
   },
   other: {
     lead: "Operations Cell",
-    team: "Rapid Response Unit",
     workflow: "Intake -> classify -> assign specialist support",
     channel: "Operations desk queue, continuous",
   },
@@ -77,17 +72,23 @@ function statusRank(s: RequestItem["status"]) {
   return s === "new" ? 0 : s === "assigned" ? 1 : s === "in_progress" ? 2 : 3;
 }
 
-function pseudoHours(id: string) {
-  let hash = 0;
-  for (let i = 0; i < id.length; i += 1) {
-    hash = (hash * 31 + id.charCodeAt(i)) | 0;
-  }
-  return Math.abs(hash % 72) + 1;
+function parseTime(value: string) {
+  const t = new Date(value).getTime();
+  return Number.isNaN(t) ? 0 : t;
 }
 
-function formatAgo(hours: number) {
+function formatAgo(value: string) {
+  const ts = parseTime(value);
+  if (!ts) return "unknown";
+  const hours = Math.max(1, Math.floor((Date.now() - ts) / (1000 * 60 * 60)));
   if (hours < 24) return `${hours}h ago`;
   return `${Math.floor(hours / 24)}d ${hours % 24}h ago`;
+}
+
+function formatDateTime(value: string) {
+  const ts = parseTime(value);
+  if (!ts) return "unknown";
+  return new Date(ts).toLocaleString();
 }
 
 function UrgencyBadge({ urgency }: { urgency: RequestItem["urgency"] }) {
@@ -113,6 +114,8 @@ export default function App() {
   const [urgency, setUrgency] = useState<RequestItem["urgency"]>("high");
   const [location, setLocation] = useState("");
   const [description, setDescription] = useState("");
+  const [assigneeName, setAssigneeName] = useState("");
+  const [assigneeTeam, setAssigneeTeam] = useState("");
 
   const [q, setQ] = useState("");
   const [urgFilter, setUrgFilter] = useState<"all" | RequestItem["urgency"]>("all");
@@ -121,6 +124,10 @@ export default function App() {
   const [locationFilter, setLocationFilter] = useState<string>("all");
   const [sortBy, setSortBy] = useState<"urgency" | "status" | "category" | "location" | "updated">("urgency");
   const [selectedRequestId, setSelectedRequestId] = useState<string>("");
+
+  const [detailStatus, setDetailStatus] = useState<RequestItem["status"]>("new");
+  const [detailAssigneeName, setDetailAssigneeName] = useState("");
+  const [detailAssigneeTeam, setDetailAssigneeTeam] = useState("");
 
   async function loadEvents() {
     const res = await fetch(`${API}/events`);
@@ -177,21 +184,25 @@ export default function App() {
         location,
         description,
         status: "new",
+        assignee_name: assigneeName.trim() || null,
+        assignee_team: assigneeTeam.trim() || null,
       }),
     });
 
     setLocation("");
     setDescription("");
+    setAssigneeName("");
+    setAssigneeTeam("");
     setMsg("Request added.");
     await loadRequests(selectedEventId);
     setTimeout(() => setMsg(""), 1200);
   }
 
-  async function updateRequestStatus(requestId: string, status: RequestItem["status"]) {
+  async function patchRequest(requestId: string, patch: Partial<RequestItem>) {
     await fetch(`${API}/requests/${requestId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status }),
+      body: JSON.stringify(patch),
     });
     await loadRequests(selectedEventId);
   }
@@ -242,7 +253,9 @@ export default function App() {
           r.location.toLowerCase().includes(norm) ||
           r.description.toLowerCase().includes(norm) ||
           r.category.toLowerCase().includes(norm) ||
-          r.status.toLowerCase().includes(norm)
+          r.status.toLowerCase().includes(norm) ||
+          (r.assignee_name || "").toLowerCase().includes(norm) ||
+          (r.assignee_team || "").toLowerCase().includes(norm)
         );
       });
     }
@@ -251,7 +264,7 @@ export default function App() {
       if (sortBy === "urgency") return urgencyRank(a.urgency) - urgencyRank(b.urgency);
       if (sortBy === "status") return statusRank(a.status) - statusRank(b.status);
       if (sortBy === "category") return a.category.localeCompare(b.category);
-      if (sortBy === "updated") return pseudoHours(a.id) - pseudoHours(b.id);
+      if (sortBy === "updated") return parseTime(b.updated_at) - parseTime(a.updated_at);
       return a.location.localeCompare(b.location);
     });
 
@@ -296,16 +309,23 @@ export default function App() {
     if (selectedRequest.id !== selectedRequestId) setSelectedRequestId(selectedRequest.id);
   }, [selectedRequest, selectedRequestId]);
 
+  useEffect(() => {
+    if (!selectedRequest) return;
+    setDetailStatus(selectedRequest.status);
+    setDetailAssigneeName(selectedRequest.assignee_name || "");
+    setDetailAssigneeTeam(selectedRequest.assignee_team || "");
+  }, [selectedRequest]);
+
   const activityFeed = useMemo(() => {
     return [...monitored]
-      .sort((a, b) => pseudoHours(a.id) - pseudoHours(b.id))
+      .sort((a, b) => parseTime(b.updated_at) - parseTime(a.updated_at))
       .slice(0, 8)
       .map((r) => ({
         id: r.id,
         status: r.status,
         urgency: r.urgency,
-        message: `${toLabel(r.category)} update at ${r.location}: ${toLabel(r.status)} (${CATEGORY_OWNER[r.category].team}).`,
-        at: formatAgo(pseudoHours(r.id)),
+        message: `${toLabel(r.category)} update at ${r.location}: ${toLabel(r.status)} (${r.assignee_team || "Operations Team"}).`,
+        at: formatAgo(r.updated_at),
       }));
   }, [monitored]);
 
@@ -394,6 +414,19 @@ export default function App() {
               onChange={(e) => setDescription(e.target.value)}
             />
             <div className="spacer" />
+            <div className="row">
+              <input
+                placeholder="Assignee name (optional)"
+                value={assigneeName}
+                onChange={(e) => setAssigneeName(e.target.value)}
+              />
+              <input
+                placeholder="Assignee team (optional)"
+                value={assigneeTeam}
+                onChange={(e) => setAssigneeTeam(e.target.value)}
+              />
+            </div>
+            <div className="spacer" />
             <button onClick={createRequest}>Add Request</button>
           </div>
 
@@ -428,6 +461,7 @@ export default function App() {
                       <div>
                         <div className="itemTitle">{toLabel(r.category)} - {r.location}</div>
                         <div className="itemMeta">{r.description}</div>
+                        <div className="smallMeta">{r.assignee_name || "Unassigned"} - {r.assignee_team || "No team"}</div>
                       </div>
                       <div className="badgeCluster">
                         <UrgencyBadge urgency={r.urgency} />
@@ -446,7 +480,7 @@ export default function App() {
             <h2>Filter + Sort</h2>
             <div className="monitorBar">
               <input
-                placeholder="Search location, status, category, details"
+                placeholder="Search location, status, category, assignee"
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
               />
@@ -573,7 +607,9 @@ export default function App() {
                       <div className="queueMain">
                         <div className="itemTitle">{toLabel(r.category)} - {r.location}</div>
                         <div className="itemMeta">{r.description}</div>
-                        <div className="smallMeta">Last update {formatAgo(pseudoHours(r.id))}</div>
+                        <div className="smallMeta">
+                          {r.assignee_name || "Unassigned"} - {r.assignee_team || "No team"} - Updated {formatAgo(r.updated_at)}
+                        </div>
                       </div>
                       <div className="badgeCluster">
                         <UrgencyBadge urgency={r.urgency} />
@@ -607,32 +643,62 @@ export default function App() {
                     <div className="detailGrid">
                       <div>
                         <div className="detailLabel">Lead</div>
-                        <div>{CATEGORY_OWNER[selectedRequest.category].lead}</div>
+                        <div>{CATEGORY_WORKFLOW[selectedRequest.category].lead}</div>
                       </div>
                       <div>
-                        <div className="detailLabel">Execution Team</div>
-                        <div>{CATEGORY_OWNER[selectedRequest.category].team}</div>
+                        <div className="detailLabel">Assigned To</div>
+                        <div>{selectedRequest.assignee_name || "Unassigned"}</div>
+                      </div>
+                      <div>
+                        <div className="detailLabel">Assigned Team</div>
+                        <div>{selectedRequest.assignee_team || "No team"}</div>
                       </div>
                       <div>
                         <div className="detailLabel">How It Happens</div>
-                        <div>{CATEGORY_OWNER[selectedRequest.category].workflow}</div>
+                        <div>{CATEGORY_WORKFLOW[selectedRequest.category].workflow}</div>
                       </div>
                       <div>
                         <div className="detailLabel">Coordination Channel</div>
-                        <div>{CATEGORY_OWNER[selectedRequest.category].channel}</div>
+                        <div>{CATEGORY_WORKFLOW[selectedRequest.category].channel}</div>
+                      </div>
+                      <div>
+                        <div className="detailLabel">Timeline</div>
+                        <div>Created {formatDateTime(selectedRequest.created_at)}</div>
+                        <div>Updated {formatDateTime(selectedRequest.updated_at)}</div>
                       </div>
                     </div>
                   </div>
 
                   <div className="detailActions">
-                    <select
-                      value={selectedRequest.status}
-                      onChange={(e) => updateRequestStatus(selectedRequest.id, e.target.value as RequestItem["status"])}
+                    <div className="row">
+                      <select value={detailStatus} onChange={(e) => setDetailStatus(e.target.value as RequestItem["status"])}>
+                        {STATUS_OPTIONS.map((entry) => (
+                          <option key={entry} value={entry}>{toLabel(entry)}</option>
+                        ))}
+                      </select>
+                      <input
+                        value={detailAssigneeName}
+                        onChange={(e) => setDetailAssigneeName(e.target.value)}
+                        placeholder="Assignee name"
+                      />
+                      <input
+                        value={detailAssigneeTeam}
+                        onChange={(e) => setDetailAssigneeTeam(e.target.value)}
+                        placeholder="Assignee team"
+                      />
+                    </div>
+                    <div className="spacer" />
+                    <button
+                      onClick={async () => {
+                        await patchRequest(selectedRequest.id, {
+                          status: detailStatus,
+                          assignee_name: detailAssigneeName.trim() || null,
+                          assignee_team: detailAssigneeTeam.trim() || null,
+                        });
+                      }}
                     >
-                      {STATUS_OPTIONS.map((entry) => (
-                        <option key={entry} value={entry}>{toLabel(entry)}</option>
-                      ))}
-                    </select>
+                      Save Update
+                    </button>
                   </div>
                 </>
               )}

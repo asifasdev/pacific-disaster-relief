@@ -1,6 +1,7 @@
 import uuid
+from datetime import datetime
 
-from sqlalchemy import Column, ForeignKey, String
+from sqlalchemy import Column, DateTime, ForeignKey, String
 from sqlalchemy.orm import relationship
 
 from .db import Base
@@ -27,5 +28,9 @@ class Request(Base):
     location = Column(String, nullable=False)
     description = Column(String, nullable=False)
     status = Column(String, nullable=False, default="new")
+    assignee_name = Column(String, nullable=True)
+    assignee_team = Column(String, nullable=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     event = relationship("Event", back_populates="requests")

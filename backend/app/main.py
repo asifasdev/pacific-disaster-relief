@@ -63,7 +63,7 @@ def list_requests(event_id: str | None = None, db: Session = Depends(get_db)):
     query = db.query(Request)
     if event_id:
         query = query.filter(Request.event_id == event_id)
-    return query.all()
+    return query.order_by(Request.updated_at.desc()).all()
 
 
 @app.post("/requests", response_model=RequestRead)
@@ -85,7 +85,7 @@ def update_request(request_id: str, payload: RequestUpdate, db: Session = Depend
     if not request_item:
         raise HTTPException(status_code=404, detail="request not found")
 
-    patch = payload.model_dump(exclude_none=True)
+    patch = payload.model_dump(exclude_unset=True)
 
     if "event_id" in patch:
         event_exists = db.query(Event).filter(Event.id == patch["event_id"]).first()

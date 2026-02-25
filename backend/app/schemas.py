@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
@@ -31,6 +32,8 @@ class RequestBase(BaseModel):
     location: str
     description: str
     status: RequestStatus = "new"
+    assignee_name: str | None = None
+    assignee_team: str | None = None
 
 
 class RequestCreate(RequestBase):
@@ -39,6 +42,8 @@ class RequestCreate(RequestBase):
 
 class RequestRead(RequestBase):
     id: str
+    created_at: datetime
+    updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -50,3 +55,5 @@ class RequestUpdate(BaseModel):
     category: Category | None = None
     location: str | None = None
     description: str | None = None
+    assignee_name: str | None = None
+    assignee_team: str | None = None
