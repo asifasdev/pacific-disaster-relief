@@ -43,7 +43,8 @@ export default function App() {
     const res = await fetch(`${API}/events`);
     const data = await res.json();
     setEvents(data);
-    if (!selectedEventId && data?.[0]?.id) setSelectedEventId(data[0].id);
+    // Fix: always select first event if nothing selected
+    setSelectedEventId((prev) => prev || data?.[0]?.id || "");
   }
 
   async function loadRequests(eventId: string) {
@@ -53,21 +54,19 @@ export default function App() {
     setRequests(data);
   }
 
-  async function seedDemo() {
-    setMsg("Seeding demo data...");
-    await fetch(`${API}/seed`, { method: "POST" });
-    await loadEvents();
-    setMsg("Demo data loaded.");
-    setTimeout(() => setMsg(""), 1500);
-  }
-
   async function createEvent() {
-    if (!ename.trim() || !eregion.trim()) return setMsg("Please enter event name + region.");
+    setMsg("");
+    if (!ename.trim() || !eregion.trim()) {
+      setMsg("Please enter event name and region.");
+      return;
+    }
+
     await fetch(`${API}/events`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: ename, region: eregion, status: "planned" }),
     });
+
     setEname("");
     setEregion("");
     setMsg("Event created.");
@@ -76,8 +75,15 @@ export default function App() {
   }
 
   async function createRequest() {
-    if (!selectedEventId) return setMsg("Select an event first.");
-    if (!location.trim() || !description.trim()) return setMsg("Please enter location + description.");
+    setMsg("");
+    if (!selectedEventId) {
+      setMsg("Select an event first.");
+      return;
+    }
+    if (!location.trim() || !description.trim()) {
+      setMsg("Please enter location and description.");
+      return;
+    }
 
     await fetch(`${API}/requests`, {
       method: "POST",
@@ -101,12 +107,10 @@ export default function App() {
 
   useEffect(() => {
     loadEvents();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     loadRequests(selectedEventId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedEventId]);
 
   const selectedEvent = useMemo(
@@ -128,26 +132,25 @@ export default function App() {
           <div className="logo" />
           <div>
             <h1>Pacific Disaster Relief</h1>
-            <div className="subtitle">Requests • Supplies • Volunteers — lightweight coordination for island contexts</div>
+            <div className="subtitle">
+              Coordinator dashboard for disaster events — built for low-bandwidth island contexts
+            </div>
           </div>
-        </div>
-
-        <div className="row" style={{ maxWidth: 420 }}>
-          <button onClick={seedDemo}>Load Demo Data</button>
-          <a className="badge" href={`${API}/docs`} target="_blank" rel="noreferrer">
-            API Docs
-          </a>
         </div>
       </div>
 
-      {msg && <div className="card" style={{ marginBottom: 12 }}>{msg}</div>}
+      {msg && (
+        <div className="card" style={{ marginBottom: 12 }}>
+          {msg}
+        </div>
+      )}
 
       <div className="grid">
         {/* Left column */}
         <div className="card">
           <h2>Event Control</h2>
 
-          <label className="subtitle" style={{ display: "block", marginBottom: 6 }}>Active event</label>
+          <label className="subtitle">Active event</label>
           <select value={selectedEventId} onChange={(e) => setSelectedEventId(e.target.value)}>
             {events.map((e) => (
               <option key={e.id} value={e.id}>
@@ -156,7 +159,7 @@ export default function App() {
             ))}
           </select>
 
-          <div style={{ height: 14 }} />
+          <div style={{ height: 16 }} />
 
           <h2>Create Event</h2>
           <div className="row">
@@ -222,7 +225,7 @@ export default function App() {
                   Viewing: <b>{selectedEvent.name}</b> — {selectedEvent.region} ({selectedEvent.status})
                 </>
               ) : (
-                "No event selected."
+                "Loading events..."
               )}
             </div>
           </div>
@@ -231,7 +234,7 @@ export default function App() {
             <h2>Requests</h2>
             <div className="list">
               {requests.length === 0 ? (
-                <div className="subtitle">No requests yet. Add one on the left, or load demo data.</div>
+                <div className="subtitle">No requests yet. Add one from the left panel.</div>
               ) : (
                 requests.map((r) => (
                   <div key={r.id} className="item">
