@@ -9,29 +9,136 @@ def seed_if_empty(db: Session):
     if event_count > 0:
         return
 
-    primary_event = Event(name="Cyclone Relief - Viti Levu 2026", region="Fiji", status="active")
-    secondary_event = Event(name="Flood Response - Upolu", region="Samoa", status="planned")
-    db.add_all([primary_event, secondary_event])
+    events = [
+        Event(
+            name="Vanuatu Earthquake Response - Port Vila (Dec 2024)",
+            region="Vanuatu",
+            status="active",
+        ),
+        Event(
+            name="PNG Enga Landslide Response - Mulitaka (May 2024)",
+            region="Papua New Guinea",
+            status="active",
+        ),
+        Event(
+            name="Vanuatu Cyclone Lola Early Recovery - Sanma and Penama (2024)",
+            region="Vanuatu",
+            status="planned",
+        ),
+    ]
+
+    db.add_all(events)
     db.flush()
 
-    demo_requests = [
-        ("water", "high", "Suva", "Clean drinking water for 200 households"),
-        ("medical", "high", "Lautoka", "First aid plus insulin cold-chain needed"),
-        ("shelter", "medium", "Nadi", "Tarpaulins and blankets for temporary shelters"),
-        ("food", "medium", "Nausori", "Dry rations for 3 days, around 120 families"),
-        ("transport", "low", "Korovou", "4x4 vehicle required for supply run"),
+    realistic_requests = [
+        (
+            events[0].id,
+            "medical",
+            "high",
+            "Port Vila",
+            "Support trauma and emergency care for patients transferred from damaged facilities.",
+            "assigned",
+        ),
+        (
+            events[0].id,
+            "shelter",
+            "high",
+            "Efate Island",
+            "Temporary shelter kits requested for households displaced after the 7.3 earthquake.",
+            "in_progress",
+        ),
+        (
+            events[0].id,
+            "water",
+            "medium",
+            "Port Vila",
+            "Restore safe water access for communities with damaged pipelines and storage points.",
+            "new",
+        ),
+        (
+            events[0].id,
+            "transport",
+            "medium",
+            "Port Vila",
+            "Fuel and transport support needed for medical evacuation and relief cargo movement.",
+            "new",
+        ),
+        (
+            events[1].id,
+            "shelter",
+            "high",
+            "Mulitaka, Enga Province",
+            "Emergency shelter materials required for families displaced by landslide debris.",
+            "in_progress",
+        ),
+        (
+            events[1].id,
+            "food",
+            "high",
+            "Mulitaka, Enga Province",
+            "Immediate food distribution requested while local supply routes remain disrupted.",
+            "assigned",
+        ),
+        (
+            events[1].id,
+            "water",
+            "high",
+            "Mulitaka, Enga Province",
+            "Safe drinking water and household purification supplies needed for temporary sites.",
+            "new",
+        ),
+        (
+            events[1].id,
+            "medical",
+            "high",
+            "Porgera-Paiela District",
+            "Mobile health team support needed for trauma, wound care, and infection prevention.",
+            "new",
+        ),
+        (
+            events[1].id,
+            "transport",
+            "medium",
+            "Wabag",
+            "Heavy equipment and road access support required to improve aid delivery corridors.",
+            "new",
+        ),
+        (
+            events[2].id,
+            "shelter",
+            "medium",
+            "Sola, Vanua Lava",
+            "Roofing materials and weatherproof shelter repairs requested during early recovery.",
+            "new",
+        ),
+        (
+            events[2].id,
+            "food",
+            "medium",
+            "Northeast Malekula",
+            "Community food assistance requested for households with crop and garden losses.",
+            "new",
+        ),
+        (
+            events[2].id,
+            "water",
+            "medium",
+            "Penama Province",
+            "Water system repairs and storage tanks needed after cyclone damage to infrastructure.",
+            "new",
+        ),
     ]
 
     requests = [
         Request(
-            event_id=primary_event.id,
+            event_id=event_id,
             category=category,
             urgency=urgency,
             location=location,
             description=description,
-            status="new",
+            status=status,
         )
-        for category, urgency, location, description in demo_requests
+        for event_id, category, urgency, location, description, status in realistic_requests
     ]
 
     db.add_all(requests)
